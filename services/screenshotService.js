@@ -447,7 +447,42 @@ class StealthTabPoolScreenshotService {
             }
         }
     }
-
+    async simulateRandomMouseMovements(page) {
+        await page.evaluate(async () => {
+            const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+            
+            // Perform 2-4 random mouse movements
+            const movements = 2 + Math.floor(Math.random() * 3);
+            
+            for (let i = 0; i < movements; i++) {
+                const x = Math.random() * window.innerWidth;
+                const y = Math.random() * window.innerHeight;
+                
+                const steps = 10 + Math.floor(Math.random() * 20);
+                const currentX = window.mouseX || window.innerWidth / 2;
+                const currentY = window.mouseY || window.innerHeight / 2;
+                
+                for (let j = 0; j <= steps; j++) {
+                    const progress = j / steps;
+                    const eased = 1 - Math.pow(1 - progress, 2);
+                    
+                    window.mouseX = currentX + (x - currentX) * eased;
+                    window.mouseY = currentY + (y - currentY) * eased;
+                    
+                    const event = new MouseEvent('mousemove', {
+                        clientX: window.mouseX,
+                        clientY: window.mouseY,
+                        bubbles: true
+                    });
+                    document.dispatchEvent(event);
+                    
+                    await sleep(20 + Math.random() * 30);
+                }
+                
+                await sleep(200 + Math.random() * 800);
+            }
+        });
+    }
     async takeScreenshot(options) {
         const startTime = Date.now();
         let tabInfo = null;
@@ -510,8 +545,12 @@ class StealthTabPoolScreenshotService {
             // Wait additional time if specified
             await new Promise(resolve => setTimeout(resolve, screenshotOptions.waitTime));
 
+            await this.simulateRandomMouseMovements(page);
+
             // Simulate human-like scrolling before screenshot
             await this.simulateHumanScrolling(page);
+            
+            await new Promise(resolve => setTimeout(resolve, 300 + Math.random() * 500));
 
             let screenshot;
             if (screenshotOptions.type === 'top') {
@@ -598,30 +637,200 @@ class StealthTabPoolScreenshotService {
         await page.evaluate(async () => {
             const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
             
-            // Random scroll patterns
+            // Helper function to simulate mouse movement
+            const moveMouseTo = async (x, y, duration = 200) => {
+                const steps = Math.max(5, Math.floor(duration / 20));
+                const currentX = window.mouseX || Math.random() * window.innerWidth;
+                const currentY = window.mouseY || Math.random() * window.innerHeight;
+                
+                for (let i = 0; i <= steps; i++) {
+                    const progress = i / steps;
+                    // Easing function for natural movement
+                    const eased = 1 - Math.pow(1 - progress, 3);
+                    
+                    const newX = currentX + (x - currentX) * eased;
+                    const newY = currentY + (y - currentY) * eased;
+                    
+                    // Add small random variations
+                    const jitterX = (Math.random() - 0.5) * 2;
+                    const jitterY = (Math.random() - 0.5) * 2;
+                    
+                    window.mouseX = newX + jitterX;
+                    window.mouseY = newY + jitterY;
+                    
+                    // Dispatch mouse move event
+                    const event = new MouseEvent('mousemove', {
+                        clientX: window.mouseX,
+                        clientY: window.mouseY,
+                        bubbles: true
+                    });
+                    document.dispatchEvent(event);
+                    
+                    await sleep(20);
+                }
+            };
+            
+            // Helper function to get random element to hover over
+            const getRandomHoverTarget = () => {
+                const elements = document.querySelectorAll('a, button, [onclick], .clickable, h1, h2, h3, img');
+                if (elements.length === 0) return null;
+                return elements[Math.floor(Math.random() * elements.length)];
+            };
+            
+            // Random scroll patterns with mouse movements
             const patterns = [
-                // Quick scan
+                // Quick scan with mouse following
                 async () => {
-                    await sleep(500);
+                    await sleep(300);
+                    
+                    // Move mouse to center of viewport
+                    await moveMouseTo(
+                        window.innerWidth * (0.3 + Math.random() * 0.4),
+                        window.innerHeight * 0.3,
+                        400
+                    );
+                    await sleep(200);
+                    
                     window.scrollBy(0, 300);
-                    await sleep(700);
-                    window.scrollBy(0, -150);
+                    
+                    // Move mouse down as we scroll
+                    await moveMouseTo(
+                        window.mouseX + (Math.random() - 0.5) * 100,
+                        window.mouseY + 150,
+                        300
+                    );
                     await sleep(500);
+                    
+                    window.scrollBy(0, -150);
+                    
+                    // Move mouse up slightly
+                    await moveMouseTo(
+                        window.mouseX + (Math.random() - 0.5) * 50,
+                        window.mouseY - 80,
+                        200
+                    );
+                    await sleep(400);
                 },
-                // Slow read
+                
+                // Slow read with hover interactions
                 async () => {
                     for (let i = 0; i < 3; i++) {
+                        // Scroll down
                         window.scrollBy(0, 100);
-                        await sleep(800 + Math.random() * 400);
+                        
+                        // Move mouse to follow content
+                        await moveMouseTo(
+                            100 + Math.random() * (window.innerWidth - 200),
+                            200 + Math.random() * 300,
+                            300 + Math.random() * 200
+                        );
+                        
+                        await sleep(400 + Math.random() * 400);
+                        
+                        // Occasionally hover over an element
+                        if (Math.random() < 0.6) {
+                            const element = getRandomHoverTarget();
+                            if (element) {
+                                const rect = element.getBoundingClientRect();
+                                if (rect.top >= 0 && rect.top <= window.innerHeight) {
+                                    await moveMouseTo(
+                                        rect.left + rect.width / 2,
+                                        rect.top + rect.height / 2,
+                                        150 + Math.random() * 100
+                                    );
+                                    await sleep(300 + Math.random() * 500);
+                                }
+                            }
+                        }
+                        
+                        await sleep(400 + Math.random() * 400);
                     }
                 },
-                // Jump to bottom and back
+                
+                // Jump to bottom and back with natural mouse movement
                 async () => {
                     const height = document.body.scrollHeight;
-                    window.scrollTo(0, height);
-                    await sleep(1000);
-                    window.scrollTo(0, 0);
-                    await sleep(500);
+                    
+                    // Move mouse before scrolling
+                    await moveMouseTo(
+                        window.innerWidth * 0.5,
+                        window.innerHeight * 0.7,
+                        300
+                    );
+                    
+                    // Scroll to bottom in steps
+                    const scrollSteps = 5;
+                    for (let i = 1; i <= scrollSteps; i++) {
+                        window.scrollTo(0, (height * i) / scrollSteps);
+                        
+                        // Move mouse to follow scroll
+                        await moveMouseTo(
+                            window.mouseX + (Math.random() - 0.5) * 200,
+                            Math.min(window.innerHeight * 0.8, window.mouseY + 50),
+                            100
+                        );
+                        
+                        await sleep(200 + Math.random() * 200);
+                    }
+                    
+                    await sleep(800);
+                    
+                    // Scroll back to top in steps
+                    for (let i = scrollSteps - 1; i >= 0; i--) {
+                        window.scrollTo(0, (height * i) / scrollSteps);
+                        
+                        // Move mouse up as we scroll up
+                        await moveMouseTo(
+                            window.mouseX + (Math.random() - 0.5) * 100,
+                            Math.max(100, window.mouseY - 50),
+                            100
+                        );
+                        
+                        await sleep(150 + Math.random() * 150);
+                    }
+                    
+                    await sleep(300);
+                },
+                
+                // Reading pattern with text following
+                async () => {
+                    const textElements = document.querySelectorAll('p, div, span, article');
+                    const visibleText = Array.from(textElements).filter(el => {
+                        const rect = el.getBoundingClientRect();
+                        return rect.top >= 0 && rect.top <= window.innerHeight && 
+                               el.textContent.trim().length > 50;
+                    });
+                    
+                    if (visibleText.length > 0) {
+                        for (let i = 0; i < Math.min(3, visibleText.length); i++) {
+                            const element = visibleText[i];
+                            const rect = element.getBoundingClientRect();
+                            
+                            // Move mouse to start of text
+                            await moveMouseTo(
+                                rect.left + 20,
+                                rect.top + 20,
+                                400 + Math.random() * 200
+                            );
+                            
+                            // Simulate reading by moving mouse across text
+                            const readingSteps = 3 + Math.floor(Math.random() * 4);
+                            for (let j = 0; j < readingSteps; j++) {
+                                await moveMouseTo(
+                                    rect.left + (rect.width * (j + 1)) / readingSteps,
+                                    rect.top + 20 + (Math.random() - 0.5) * 10,
+                                    200 + Math.random() * 100
+                                );
+                                await sleep(300 + Math.random() * 500);
+                            }
+                            
+                            // Small scroll to next section
+                            if (i < visibleText.length - 1) {
+                                window.scrollBy(0, 80 + Math.random() * 40);
+                                await sleep(300);
+                            }
+                        }
+                    }
                 }
             ];
             
@@ -629,9 +838,23 @@ class StealthTabPoolScreenshotService {
             const pattern = patterns[Math.floor(Math.random() * patterns.length)];
             await pattern();
             
+            // Final mouse movement to a natural position
+            await moveMouseTo(
+                200 + Math.random() * (window.innerWidth - 400),
+                100 + Math.random() * 200,
+                500
+            );
+            
             // Return to top
             window.scrollTo(0, 0);
-            await sleep(500);
+            await sleep(300);
+            
+            // Move mouse to top area
+            await moveMouseTo(
+                window.innerWidth * (0.2 + Math.random() * 0.6),
+                100 + Math.random() * 100,
+                400
+            );
         });
     }
 
