@@ -535,7 +535,9 @@ class StealthTabPoolScreenshotService {
                 waitUntil: 'networkidle2',
                 timeout: 60000
             });
-
+            if (options.waitForSelector) { // Add a new option
+                await page.waitForSelector(options.waitForSelector, { visible: true, timeout: 30000 }); // Adjust timeout
+            }
             // Check if blocked
             if (response && response.status() === 403) {
                 this.stats.blockedRequests++;
