@@ -1,0 +1,43 @@
+# Dockerfile.tester
+# Performance testing container for Screenshot Service
+
+FROM node:18-alpine
+
+# Set working directory
+WORKDIR /usr/src/app
+
+# Install dependencies for testing
+RUN apk add --no-cache \
+    curl \
+    wget \
+    jq \
+    bash
+
+# Create test results directory
+RUN mkdir -p test-results
+
+# Copy package files
+COPY package*.json ./
+
+# Install only necessary dependencies
+RUN npm install axios
+
+# Copy test scripts
+COPY scripts/performance-test.js scripts/
+
+# Set environment defaults
+ENV TEST_URL=http://localhost:3000
+ENV NODE_ENV=test
+
+# Create a non-root user
+RUN addgroup -g 1001 -S tester && \
+    adduser -S tester -u 1001 -G tester
+
+# Set ownership
+RUN chown -R tester:tester /usr/src/app
+
+# Switch to non-root user
+USER tester
+
+# Default command
+CMD ["node", "scripts/performance-test.js", "moderate"]

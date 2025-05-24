@@ -1,12 +1,15 @@
+// routes/health.js
 const express = require('express');
 const router = express.Router();
 const os = require('os');
 const logger = require('../utils/logger');
+const screenshotService = require('../services/screenshotService');
 
 // Health check configuration
 const MEMORY_THRESHOLD = parseFloat(process.env.MEMORY_THRESHOLD) || 0.85; // 85%
 const CPU_THRESHOLD = parseFloat(process.env.CPU_THRESHOLD) || 0.90; // 90%
 const UPTIME_THRESHOLD = parseInt(process.env.MAX_UPTIME_HOURS) || 24; // 24 hours
+const TAB_USAGE_THRESHOLD = 0.90; // 90% of MAX_TABS
 
 let lastCpuUsage = process.cpuUsage();
 let lastCpuTime = Date.now();
@@ -15,7 +18,7 @@ let lastRestartTime = Date.now();
 
 /**
  * GET /health
- * Basic health check endpoint
+ * Basic health check endpoint with tab pool metrics
  */
 router.get('/', async (req, res) => {
     try {
@@ -28,7 +31,7 @@ router.get('/', async (req, res) => {
             logger.warn('Health check failed', healthData);
             res.status(503).json(healthData);
             
-            // Trigger restart if unhealthy
+            // Trigger restart if critical
             if (healthData.critical) {
                 setTimeout(() => {
                     logger.error('Critical health issue detected, triggering restart');
@@ -49,7 +52,7 @@ router.get('/', async (req, res) => {
 
 /**
  * GET /health/detailed
- * Detailed health information
+ * Detailed health information including tab pool analytics
  */
 router.get('/detailed', async (req, res) => {
     try {
@@ -60,6 +63,64 @@ router.get('/detailed', async (req, res) => {
         res.status(500).json({
             status: 'error',
             message: 'Detailed health check failed',
+            error: error.message,
+            timestamp: new Date().toISOString()
+        });
+    }
+});
+
+/**
+ * GET /health/tabs
+ * Tab pool specific health metrics
+ */
+router.get('/tabs', async (req, res) => {
+    try {
+        const tabPoolStats = screenshotService.getStats();
+        const maxTabs = parseInt(process.env.MAX_TABS) || 20;
+        const tabUsagePercent = (tabPoolStats.activeTabsCount / maxTabs) * 100;
+        
+        const tabHealth = {
+            status: tabUsagePercent < 80 ? 'healthy' : tabUsagePercent < 95 ? 'warning' : 'critical',
+            metrics: {
+                activeTabsCount: tabPoolStats.activeTabsCount,
+                maxTabs: maxTabs,
+                tabUsagePercent: tabUsagePercent.toFixed(1),
+                tabsCreated: tabPoolStats.tabsCreated,
+                tabsClosed: tabPoolStats.tabsClosed,
+                browserConnected: tabPoolStats.browserConnected,
+                browserPid: tabPoolStats.browserPid,
+                browserRestarts: tabPoolStats.browserRestarts,
+                tabTurnover: tabPoolStats.tabsCreated > 0 ? 
+                    ((tabPoolStats.tabsClosed / tabPoolStats.tabsCreated) * 100).toFixed(1) : 0
+            },
+            performance: {
+                totalRequests: tabPoolStats.totalRequests,
+                successfulRequests: tabPoolStats.successfulRequests,
+                failedRequests: tabPoolStats.failedRequests,
+                successRate: tabPoolStats.totalRequests > 0 ?
+                    ((tabPoolStats.successfulRequests / tabPoolStats.totalRequests) * 100).toFixed(1) : 100,
+                averageProcessingTime: Math.round(tabPoolStats.averageProcessingTime)
+            },
+            recommendations: []
+        };
+        
+        // Add recommendations based on metrics
+        if (tabUsagePercent > 90) {
+            tabHealth.recommendations.push('Consider increasing MAX_TABS to handle more concurrent requests');
+        }
+        if (tabPoolStats.browserRestarts > 5) {
+            tabHealth.recommendations.push('High browser restart count detected - check logs for stability issues');
+        }
+        if (tabPoolStats.failedRequests > tabPoolStats.successfulRequests * 0.1) {
+            tabHealth.recommendations.push('High failure rate detected - review error logs');
+        }
+        
+        res.json(tabHealth);
+    } catch (error) {
+        logger.error('Tab health check error:', error);
+        res.status(500).json({
+            status: 'error',
+            message: 'Tab health check failed',
             error: error.message,
             timestamp: new Date().toISOString()
         });
@@ -96,6 +157,11 @@ async function getHealthData() {
     const cpuUsagePercent = getCpuUsage();
     const uptimeHours = process.uptime() / 3600;
     
+    // Get tab pool stats
+    const tabPoolStats = screenshotService.getStats();
+    const maxTabs = parseInt(process.env.MAX_TABS) || 20;
+    const tabUsagePercent = (tabPoolStats.activeTabsCount / maxTabs);
+    
     const issues = [];
     let critical = false;
 
@@ -123,6 +189,18 @@ async function getHealthData() {
         if (heapUsagePercent > 0.95) critical = true;
     }
 
+    // Check tab pool usage
+    if (tabUsagePercent > TAB_USAGE_THRESHOLD) {
+        issues.push(`High tab usage: ${(tabUsagePercent * 100).toFixed(1)}%`);
+        if (tabUsagePercent >= 1) critical = true;
+    }
+
+    // Check browser connection
+    if (!tabPoolStats.browserConnected) {
+        issues.push('Browser disconnected');
+        critical = true;
+    }
+
     const status = issues.length === 0 ? 'healthy' : critical ? 'critical' : 'warning';
 
     return {
@@ -148,7 +226,20 @@ async function getHealthData() {
             cpu: {
                 usagePercent: (cpuUsagePercent * 100).toFixed(1),
                 loadAverage: os.loadavg()
+            },
+            tabPool: {
+                activeTabsCount: tabPoolStats.activeTabsCount,
+                maxTabs: maxTabs,
+                tabUsagePercent: (tabUsagePercent * 100).toFixed(1),
+                browserConnected: tabPoolStats.browserConnected,
+                browserRestarts: tabPoolStats.browserRestarts
             }
+        },
+        stats: {
+            totalRequests: tabPoolStats.totalRequests,
+            successfulRequests: tabPoolStats.successfulRequests,
+            failedRequests: tabPoolStats.failedRequests,
+            averageProcessingTime: Math.round(tabPoolStats.averageProcessingTime)
         },
         environment: {
             nodeVersion: process.version,
@@ -164,6 +255,7 @@ async function getHealthData() {
 
 async function getDetailedHealthData() {
     const basicHealth = await getHealthData();
+    const tabPoolStats = screenshotService.getStats();
     
     // Additional detailed checks
     const networkInterfaces = os.networkInterfaces();
@@ -192,6 +284,15 @@ async function getDetailedHealthData() {
                 model: cpus[0]?.model,
                 speed: cpus[0]?.speed,
                 usage: basicHealth.metrics.cpu
+            },
+            tabPoolDetailed: {
+                ...tabPoolStats,
+                tabEfficiency: tabPoolStats.tabsCreated > 0 ? 
+                    ((tabPoolStats.successfulRequests / tabPoolStats.tabsCreated) * 100).toFixed(1) : 0,
+                averageTabLifetime: tabPoolStats.tabsClosed > 0 ?
+                    Math.round(process.uptime() * 1000 / tabPoolStats.tabsClosed) : 0,
+                requestsPerTab: tabPoolStats.tabsCreated > 0 ?
+                    (tabPoolStats.totalRequests / tabPoolStats.tabsCreated).toFixed(1) : 0
             },
             gc: {
                 heapCodeStatistics: typeof v8 !== 'undefined' ? v8.getHeapCodeStatistics() : null,

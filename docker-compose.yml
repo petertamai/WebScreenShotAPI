@@ -1,0 +1,107 @@
+# docker-compose.yml
+version: '3.8'
+
+services:
+  screenshot-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: screenshot-service
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - MAX_TABS=20
+      - MAX_CONCURRENT_REQUESTS=20
+      - RATE_LIMIT_MAX_REQUESTS=50
+      - MEMORY_THRESHOLD=0.85
+      - CPU_THRESHOLD=0.90
+      - LOG_LEVEL=info
+      - ENABLE_FILE_LOGGING=true
+      - CHROMIUM_PATH=/usr/bin/chromium-browser
+    volumes:
+      - ./logs:/usr/src/app/logs
+      - ./.env:/usr/src/app/.env:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '2.0'
+        reservations:
+          memory: 1G
+          cpus: '1.0'
+    networks:
+      - screenshot-network
+
+  # Optional: Monitoring with Prometheus
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: screenshot-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    restart: unless-stopped
+    networks:
+      - screenshot-network
+    profiles:
+      - monitoring
+
+  # Optional: Grafana for visualisation
+  grafana:
+    image: grafana/grafana:latest
+    container_name: screenshot-grafana
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana-dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana-datasources.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+    networks:
+      - screenshot-network
+    profiles:
+      - monitoring
+
+  # Optional: Performance testing container
+  performance-tester:
+    build:
+      context: .
+      dockerfile: Dockerfile.tester
+    container_name: screenshot-tester
+    environment:
+      - TEST_URL=http://screenshot-service:3000
+      - MAX_TABS=20
+    volumes:
+      - ./scripts:/usr/src/app/scripts:ro
+      - ./test-results:/usr/src/app/test-results
+    networks:
+      - screenshot-network
+    profiles:
+      - testing
+    command: ["node", "scripts/performance-test.js"]
+
+networks:
+  screenshot-network:
+    driver: bridge
+
+volumes:
+  prometheus-data:
+  grafana-data:

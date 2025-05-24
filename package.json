@@ -1,53 +1,81 @@
 {
-    "name": "screenshot-service",
-    "version": "1.0.0",
-    "description": "High-performance screenshot service with Express.js",
-    "main": "app.js",
-    "scripts": {
-      "start": "node app.js",
-      "dev": "NODE_ENV=development nodemon app.js",
-      "pm2:start": "pm2 start ecosystem.config.js",
-      "pm2:stop": "pm2 stop screenshot-service",
-      "pm2:restart": "pm2 restart screenshot-service",
-      "pm2:delete": "pm2 delete screenshot-service",
-      "pm2:logs": "pm2 logs screenshot-service",
-      "setup:ubuntu": "chmod +x scripts/install-chromium-ubuntu.sh && ./scripts/install-chromium-ubuntu.sh",
-      "test:health": "curl http://localhost:3000/health",
-      "test:screenshot": "curl 'http://localhost:3000/api/screenshot?url=https://example.com&width=800&type=top' -o test-screenshot.png",
-      "docker:build": "docker build -t screenshot-service .",
-      "docker:build:ubuntu": "docker build -f Dockerfile.ubuntu -t screenshot-service:ubuntu .",
-      "docker:run": "docker run -d -p 3000:3000 --name screenshot-service screenshot-service",
-      "test": "echo \"Error: no test specified\" && exit 1"
-    },
-    "dependencies": {
-      "@sparticuz/chromium": "^123.0.0",
-      "puppeteer-core": "^19.7.5",
-      "sharp": "^0.32.6",
-      "express": "^4.18.2",
-      "helmet": "^7.1.0",
-      "compression": "^1.7.4",
-      "cors": "^2.8.5",
-      "dotenv": "^16.3.1",
-      "express-rate-limit": "^7.1.5",
-      "joi": "^17.11.0",
-      "winston": "^3.11.0",
-      "express-async-errors": "^3.1.1",
-      "node-cache": "^5.1.2",
-      "prom-client": "^15.1.0"
-    },
-    "devDependencies": {
-      "nodemon": "^3.0.2"
-    },
-    "keywords": [
-      "screenshot",
-      "puppeteer",
-      "express",
-      "nodejs",
-      "api"
-    ],
-    "author": "Piotr Tamulewicz",
-    "license": "MIT",
-    "engines": {
-      "node": ">=18.0.0"
-    }
-  }
+  "name": "screenshot-service",
+  "version": "2.1.0",
+  "description": "High-performance screenshot service with stealth tab pool architecture",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "NODE_ENV=development nodemon app.js",
+    "pm2:start": "pm2 start ecosystem.config.js",
+    "pm2:stop": "pm2 stop screenshot-service",
+    "pm2:restart": "pm2 restart screenshot-service",
+    "pm2:delete": "pm2 delete screenshot-service",
+    "pm2:logs": "pm2 logs screenshot-service",
+    "pm2:monit": "pm2 monit",
+    "setup:ubuntu": "chmod +x scripts/install-chromium-ubuntu.sh && ./scripts/install-chromium-ubuntu.sh",
+    "test:health": "curl http://localhost:3000/health",
+    "test:screenshot": "curl 'http://localhost:3000/api/screenshot?url=https://example.com&width=800&type=top' -o test-screenshot.png",
+    "test:performance": "node scripts/performance-test.js",
+    "test:performance:sequential": "node scripts/performance-test.js sequential",
+    "test:performance:moderate": "node scripts/performance-test.js moderate",
+    "test:performance:high": "node scripts/performance-test.js high",
+    "test:performance:stress": "node scripts/performance-test.js stress",
+    "test:stealth": "node scripts/test-stealth.js",
+    "docker:build": "docker build -t screenshot-service .",
+    "docker:build:ubuntu": "docker build -f Dockerfile.ubuntu -t screenshot-service:ubuntu .",
+    "docker:run": "docker run -d -p 3000:3000 --name screenshot-service screenshot-service",
+    "monitor:tabs": "watch -n 1 'curl -s http://localhost:3000/health/tabs | jq'",
+    "logs:tail": "tail -f logs/combined.log | grep -E '(Screenshot|Tab|Stealth)'",
+    "clean:logs": "rm -rf logs/*.log",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@sparticuz/chromium": "^123.0.0",
+    "puppeteer-core": "^19.7.5",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "puppeteer-extra-plugin-adblocker": "^2.13.6",
+    "sharp": "^0.32.6",
+    "express": "^4.18.2",
+    "helmet": "^7.1.0",
+    "compression": "^1.7.4",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express-rate-limit": "^7.1.5",
+    "joi": "^17.11.0",
+    "winston": "^3.11.0",
+    "express-async-errors": "^3.1.1",
+    "node-cache": "^5.1.2",
+    "prom-client": "^15.1.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2",
+    "axios": "^1.6.0"
+  },
+  "keywords": [
+    "screenshot",
+    "puppeteer",
+    "puppeteer-extra",
+    "stealth",
+    "anti-detection",
+    "express",
+    "nodejs",
+    "api",
+    "tab-pool",
+    "performance",
+    "chromium"
+  ],
+  "author": "Piotr Tamulewicz",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yourusername/screenshot-service.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/screenshot-service/issues"
+  },
+  "homepage": "https://github.com/yourusername/screenshot-service#readme"
+}

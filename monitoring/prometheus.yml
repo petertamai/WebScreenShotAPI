@@ -1,0 +1,35 @@
+# monitoring/prometheus.yml
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # Screenshot Service metrics
+  - job_name: 'screenshot-service'
+    static_configs:
+      - targets: ['screenshot-service:3000']
+    metrics_path: '/metrics'
+    
+  # Health check monitoring
+  - job_name: 'screenshot-health'
+    static_configs:
+      - targets: ['screenshot-service:3000']
+    metrics_path: '/health'
+    scrape_interval: 30s
+    
+  # Tab pool specific metrics
+  - job_name: 'screenshot-tabs'
+    static_configs:
+      - targets: ['screenshot-service:3000']
+    metrics_path: '/health/tabs'
+    scrape_interval: 10s
+
+# Alert rules (optional)
+rule_files:
+  - 'alerts.yml'
+
+# Alertmanager configuration (optional)
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
