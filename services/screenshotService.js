@@ -586,6 +586,10 @@ class StealthTabPoolScreenshotService {
                 await this.simulateRandomMouseMovements(page);
                 await new Promise(resolve => setTimeout(resolve, 300 + Math.random() * 500));
                 await this.simulateRandomMouseMovements(page);
+
+                if (options.waitForSelector) { // Add a new option
+                    await page.waitForSelector(options.waitForSelector, { visible: true, timeout: 30000 }); // Adjust timeout
+                }
                 screenshot = await page.screenshot({ 
                     fullPage: true,
                     type: 'png'
