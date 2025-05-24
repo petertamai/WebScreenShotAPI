@@ -554,6 +554,9 @@ class StealthTabPoolScreenshotService {
 
             let screenshot;
             if (screenshotOptions.type === 'top') {
+
+                await this.simulateRandomMouseMovements(page);
+                await new Promise(resolve => setTimeout(resolve, 300 + Math.random() * 500));
                 // Top screenshot
                 await page.evaluate(() => {
                     document.body.style.overflow = 'hidden';
@@ -577,6 +580,9 @@ class StealthTabPoolScreenshotService {
                     document.documentElement.style.overflow = 'hidden';
                 });
 
+                await this.simulateRandomMouseMovements(page);
+                await new Promise(resolve => setTimeout(resolve, 300 + Math.random() * 500));
+                
                 screenshot = await page.screenshot({ 
                     fullPage: true,
                     type: 'png'
