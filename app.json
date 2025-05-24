@@ -1,0 +1,11 @@
+{
+    "name": "WebScreenShot",
+    "buildpacks": [
+      {
+        "url": "heroku/google-chrome"
+      },
+      {
+        "url": "heroku/nodejs"
+      }
+    ]
+  }
