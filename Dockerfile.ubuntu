@@ -1,0 +1,89 @@
+# Alternative Dockerfile for Ubuntu-based deployment
+FROM node:18-bullseye-slim
+
+# Set environment variables
+ENV NODE_ENV=production
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+ENV DEBIAN_FRONTEND=noninteractive
+ENV CHROMIUM_PATH=/usr/bin/chromium
+
+# Update and install dependencies
+RUN apt-get update && apt-get install -y \
+    wget \
+    gnupg \
+    ca-certificates \
+    procps \
+    libxss1 \
+    libgconf-2-4 \
+    libxss1 \
+    libxtst6 \
+    libxrandr2 \
+    libasound2 \
+    libpangocairo-1.0-0 \
+    libatk1.0-0 \
+    libcairo-gobject2 \
+    libgtk-3-0 \
+    libgdk-pixbuf2.0-0 \
+    libxcomposite1 \
+    libxcursor1 \
+    libxdamage1 \
+    libxfixes3 \
+    libxinerama1 \
+    libxi6 \
+    libxrandr2 \
+    libxrender1 \
+    libxss1 \
+    libxtst6 \
+    chromium \
+    fonts-liberation \
+    fonts-dejavu-core \
+    libappindicator1 \
+    libnss3 \
+    lsb-release \
+    xdg-utils \
+    libvips-dev \
+    build-essential \
+    python3 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Verify Chromium installation
+RUN chromium --version
+
+# Create app directory
+WORKDIR /usr/src/app
+
+# Create a non-root user
+RUN groupadd --gid 1001 nodejs && \
+    useradd --uid 1001 --gid nodejs --shell /bin/bash --create-home screenshot
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm ci --only=production && \
+    npm cache clean --force
+
+# Copy application code
+COPY . .
+
+# Create logs directory
+RUN mkdir -p logs && chown -R screenshot:nodejs logs
+
+# Create .env file from example if it doesn't exist
+RUN if [ ! -f .env ]; then cp .env.example .env; fi
+
+# Set ownership of the app directory
+RUN chown -R screenshot:nodejs /usr/src/app
+
+# Switch to non-root user
+USER screenshot
+
+# Expose the port
+EXPOSE 3000
+
+# Add health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3000/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))"
+
+# Start the application
+CMD ["node", "app.js"]
