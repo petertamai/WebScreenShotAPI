@@ -578,10 +578,7 @@ class StealthTabPoolScreenshotService {
                 });
             } else {
                 // Full page screenshot
-                await page.evaluate(() => {
-                    document.body.style.overflow = 'hidden';
-                    document.documentElement.style.overflow = 'hidden';
-                });
+
 
                 await this.simulateRandomMouseMovements(page);
                 await new Promise(resolve => setTimeout(resolve, 300 + Math.random() * 500));
@@ -590,6 +587,12 @@ class StealthTabPoolScreenshotService {
                 if (options.waitForSelector) { // Add a new option
                     await page.waitForSelector(options.waitForSelector, { visible: true, timeout: 30000 }); // Adjust timeout
                 }
+
+                await page.evaluate(() => {
+                    document.body.style.overflow = 'hidden';
+                    document.documentElement.style.overflow = 'hidden';
+                });
+
                 screenshot = await page.screenshot({ 
                     fullPage: true,
                     type: 'png'
