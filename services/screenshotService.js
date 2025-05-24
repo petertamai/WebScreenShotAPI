@@ -10,8 +10,8 @@ const { formatUrl, validateUrl } = require('../utils/helpers');
 puppeteer.use(StealthPlugin());
 
 // Additional plugins for enhanced stealth
-const AdblockerPlugin = require('puppeteer-extra-plugin-adblocker');
-puppeteer.use(AdblockerPlugin({ blockTrackers: true }));
+//const AdblockerPlugin = require('puppeteer-extra-plugin-adblocker');
+//puppeteer.use(AdblockerPlugin({ blockTrackers: true }));
 
 class StealthTabPoolScreenshotService {
     constructor() {
