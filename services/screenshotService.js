@@ -94,8 +94,8 @@ class StealthTabPoolScreenshotService {
             '--disable-features=ChromeWhatsNewUI',
             '--disable-background-timer-throttling',
             '--disable-backgrounding-occluded-windows',
-            '--disable-renderer-backgrounding',
-            '--disable-features=TranslateUI',
+           // '--disable-renderer-backgrounding',
+           // '--disable-features=TranslateUI',
             '--disable-ipc-flooding-protection',
             '--password-store=basic',
             '--use-mock-keychain',
@@ -110,8 +110,8 @@ class StealthTabPoolScreenshotService {
             '--webrtc-ip-handling-policy=disable_non_proxied_udp',
             
             // Font rendering
-            '--font-render-hinting=none',
-            '--disable-font-subpixel-positioning',
+           // '--font-render-hinting=none',
+           // '--disable-font-subpixel-positioning',
             
             // GPU and graphics
             '--use-gl=swiftshader',
@@ -119,8 +119,8 @@ class StealthTabPoolScreenshotService {
             
             // Disable some APIs that can be used for fingerprinting
             '--disable-speech-api',
-            '--disable-background-networking',
-            '--disable-background-mode',
+            //'--disable-background-networking',
+            //'--disable-background-mode',
             '--disable-sync',
             '--metrics-recording-only',
             '--disable-default-apps',
