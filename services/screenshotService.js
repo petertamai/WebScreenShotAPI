@@ -101,7 +101,7 @@ class SimpleScreenshotService {
                 waitUntil: 'networkidle2',
                 timeout: 60000
             });
-
+  
             let screenshot;
             if (screenshotOptions.type === 'top') {
                 // TOP SCREENSHOT
