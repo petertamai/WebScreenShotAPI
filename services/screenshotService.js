@@ -550,6 +550,7 @@ class StealthTabPoolScreenshotService {
             // Simulate human-like scrolling before screenshot
             await this.simulateHumanScrolling(page);
             
+
             await new Promise(resolve => setTimeout(resolve, 300 + Math.random() * 500));
 
             let screenshot;
@@ -582,7 +583,7 @@ class StealthTabPoolScreenshotService {
 
                 await this.simulateRandomMouseMovements(page);
                 await new Promise(resolve => setTimeout(resolve, 300 + Math.random() * 500));
-                
+                await this.simulateRandomMouseMovements(page);
                 screenshot = await page.screenshot({ 
                     fullPage: true,
                     type: 'png'
